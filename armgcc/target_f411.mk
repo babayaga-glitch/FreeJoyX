@@ -23,7 +23,13 @@ TARGET_C_DEFS = \
 -DSTM32F411xE \
 -DUSE_FULL_LL_DRIVER \
 -DUSE_HAL_DRIVER \
--DBOARD_F411_BLACKPILL
+-DBOARD_F411_BLACKPILL \
+-DMCU_FAMILY_F4
+
+# MCU_FAMILY_F4 gates shared application code that holds for every STM32F4
+# target (device header, DWT cycle counter, OTG-FS asynchronous IN transmit).
+# BOARD_F411_BLACKPILL stays on code that is genuinely BlackPill- or
+# 96 MHz-specific (TLE5011 generator timing, F411 ADC block).
 
 # USE_HAL_DRIVER is required because Phase 3 vendors stm32f4xx_hal_flash.c
 # (LL doesn't ship a flash driver). The minimal stm32f4xx_hal_conf.h at

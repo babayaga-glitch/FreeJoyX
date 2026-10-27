@@ -13,8 +13,10 @@
 #ifdef BOARD_F103_BLUEPILL
 #include "stm32f10x.h"
 #include "stm32f10x_conf.h"
-#elif defined(BOARD_F411_BLACKPILL)
+#elif defined(MCU_FAMILY_F4)
 #include "stm32f4xx.h"
+#else
+#error "No MCU family defined. Set BOARD_F103_BLUEPILL or MCU_FAMILY_F4 in target_<chip>.mk."
 #endif
 
 #include "common_types.h"

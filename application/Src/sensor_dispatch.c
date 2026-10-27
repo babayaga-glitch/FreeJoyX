@@ -35,7 +35,7 @@
 #ifdef BOARD_F103_BLUEPILL
 #include "stm32f10x.h"
 #endif
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
 #include "stm32f4xx.h"
 #endif
 

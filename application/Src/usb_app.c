@@ -74,7 +74,7 @@ volatile int32_t  millis              = 0;
 volatile int32_t  joy_millis          = 0;
 volatile int32_t  configurator_millis = 0;
 
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
 /* F411 config-response queue. Configurator IN responses (CONFIG_IN,
  * CONFIG_OUT, checksum) are produced in USB-OUT IRQ context by
  * App_HidOutDispatch, but F411's OTG-FS Transmit is asynchronous and can
@@ -176,7 +176,7 @@ void App_HidOutDispatch(const uint8_t *hid_buf)
 	uint8_t config_out_cnt;
 	uint8_t reportId = hid_buf[0];
 
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
 	/* Any OUT report received -- light PC13 to confirm OUT path
 	 * is alive on F411. diag_out_count stops at first OUT;
 	 * pending_in_active still reflects queued config response. */
@@ -250,7 +250,7 @@ void App_HidOutDispatch(const uint8_t *hid_buf)
 					       62);
 				}
 
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
 				App_QueueOrSendInReport(REPORT_ID_CONFIG_IN, tmp_buf, 64);
 #else
 				Board_USB_SendReport(REPORT_ID_CONFIG_IN, tmp_buf, 64);
@@ -268,7 +268,7 @@ void App_HidOutDispatch(const uint8_t *hid_buf)
 				tmp_buf[2] = (uint8_t)(snapshot_checksum & 0xFF);
 				tmp_buf[3] = (uint8_t)(snapshot_checksum >> 8);
 
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
 				App_QueueOrSendInReport(REPORT_ID_CONFIG_IN, tmp_buf, 64);
 #else
 				Board_USB_SendReport(REPORT_ID_CONFIG_IN, tmp_buf, 64);
@@ -302,7 +302,7 @@ void App_HidOutDispatch(const uint8_t *hid_buf)
 				config_out_cnt = hid_buf[1] + 1;
 				tmp_buf[0] = REPORT_ID_CONFIG_OUT;
 				tmp_buf[1] = config_out_cnt;
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
 				App_QueueOrSendInReport(REPORT_ID_CONFIG_OUT, tmp_buf, 2);
 #else
 				Board_USB_SendReport(REPORT_ID_CONFIG_OUT, tmp_buf, 2);
@@ -324,7 +324,7 @@ void App_HidOutDispatch(const uint8_t *hid_buf)
 				if (version_mismatch || board_mismatch) {
 					tmp_buf[0] = REPORT_ID_CONFIG_OUT;
 					tmp_buf[1] = version_mismatch ? 0xFE : 0xFD;
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
 					App_QueueOrSendInReport(REPORT_ID_CONFIG_OUT, tmp_buf, 2);
 #else
 					Board_USB_SendReport(REPORT_ID_CONFIG_OUT, tmp_buf, 2);
@@ -398,7 +398,7 @@ void Board_TickISR(void)
 
 	AppConfigGet(&tmp_app_config);
 
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
 	/* Drain a deferred config-response fragment queued by App_HidOutDispatch
 	 * when EP2 IN was busy at OUT-IRQ time (F411's OTG-FS Transmit is async, so
 	 * SendCfgReport can return BUSY mid-transfer -- unlike F103's synchronous PMA

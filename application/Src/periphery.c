@@ -77,7 +77,7 @@ void SysTick_Init(void) {
      * StdPeriph helper and works on both boards. */
     SysTick_Config(SystemCoreClock / 1000);
 
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
     /* Enable the DWT cycle counter used by Delay_us on F411. (F103's legacy
      * CM3 CMSIS doesn't expose the DWT struct, and its busy-loop Delay_us is
      * already correctly calibrated, so F103 keeps the busy-loop.) */
@@ -141,7 +141,7 @@ void Delay_ms(uint32_t nTime)
   */
 void Delay_us(uint32_t nTime)
 {
-#ifdef BOARD_F411_BLACKPILL
+#ifdef MCU_FAMILY_F4
     /* DWT cycle-counter delay on F411: exact and immune to flash-wait-state /
      * ART-cache variation. The old busy-loop's calibration depended on the
      * core and on whether the flash accelerator was enabled (fragile, and it

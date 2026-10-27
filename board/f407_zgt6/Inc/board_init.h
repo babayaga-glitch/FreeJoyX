@@ -1,17 +1,18 @@
 /**
   ******************************************************************************
   * @file           : board_init.h
-  * @brief          : F411 BlackPill clock bring-up API.
+  * @brief          : F407 ZGT6 clock bring-up API.
   *
-  * Board_ClockInit_F411 configures the 96 MHz PLL, flash latency + ART, and
-  * USB 48 MHz clock. It is called directly by the bootloader and (via the
-  * board-agnostic Board_ClockInit() seam in board_clock.h) by the app.
+  * Board_ClockInit_F407 configures the 96 MHz PLL from the 8 MHz HSE, flash
+  * latency + ART, and the 48 MHz USB clock. The app reaches it through the
+  * board-agnostic Board_ClockInit() seam in board_clock.h. (The F407 has no
+  * bootloader yet; the F411 bootloader calls Board_ClockInit_F411 by name.)
   ******************************************************************************
   */
 
 #ifndef BOARD_INIT_H_
 #define BOARD_INIT_H_
 
-void Board_ClockInit_F411(void);
+void Board_ClockInit_F407(void);
 
 #endif /* BOARD_INIT_H_ */

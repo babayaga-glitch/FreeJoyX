@@ -1,20 +1,27 @@
 /**
   ******************************************************************************
   * @file           : board_init.c
-  * @brief          : F411 BlackPill clock + bringup helpers.
+  * @brief          : F407 ZGT6 clock + bringup helpers.
   *
-  * Clock tree for FreeJoyX on the WeAct BlackPill V3.x:
-  *   HSE     25 MHz crystal
-  *   PLL_M   25      (VCO input = 25/25 = 1 MHz, in [1..2] MHz recommended)
-  *   PLL_N   192     (VCO output = 1 x 192 = 192 MHz, in [100..432] MHz)
-  *   PLL_P   2       (SYSCLK = 192/2 = 96 MHz)
-  *   PLL_Q   4       (USB OTG FS clock = 192/4 = 48 MHz, exact)
+  * Clock tree for FreeJoyX on the FK407M2-ZGT6 V1.1 (limits from DS8626
+  * Table 36 / section 6.3.1 and RM0090 section 6):
+  *   HSE     8 MHz crystal (schematic OS1, no bypass; HSE range 4..26 MHz)
+  *   PLL_M   4       (VCO input = 8/4 = 2 MHz, in [0.95..2.10] MHz)
+  *   PLL_N   192     (VCO output = 2 x 192 = 384 MHz, in [100..432] MHz)
+  *   PLL_P   4       (SYSCLK = 384/4 = 96 MHz, max 168)
+  *   PLL_Q   8       (USB OTG FS clock = 384/8 = 48 MHz, exact)
   *   AHB     /1      (HCLK = 96 MHz)
-  *   APB1    /2      (PCLK1 = 48 MHz, max 50)
-  *   APB2    /1      (PCLK2 = 96 MHz, max 100)
+  *   APB1    /4      (PCLK1 = 24 MHz, max 42; APB1 timer clock = 48 MHz)
+  *   APB2    /2      (PCLK2 = 48 MHz, max 84; APB2 timer clock = 96 MHz)
   *
-  * Power scale 1 (LL_PWR_REGU_VOLTAGE_SCALE1) is required for HCLK > 84 MHz.
-  * Flash wait states = 3 for 90 < HCLK <= 100 MHz (RM0383 Table 5).
+  * SYSCLK/HCLK stay at the F411's 96 MHz so SystemCoreClock, SysTick, the
+  * DWT delay and the USB turnaround time match the F411 build. The F407's
+  * lower APB limits force different bus prescalers, so every constant
+  * derived from PCLK1, PCLK2 or the APB1 timer clock differs from F411.
+  *
+  * VOS scale 1 is the F407 reset default; it is set explicitly anyway.
+  * Flash wait states = 3 for 90 < HCLK <= 120 MHz at 2.7..3.6 V
+  * (RM0090 Table 11; the board runs at 3.3 V).
   ******************************************************************************
   */
 
@@ -29,7 +36,7 @@
 #include "board_init.h"
 #include "board_clock.h"
 
-void Board_ClockInit_F411(void)
+void Board_ClockInit_F407(void)
 {
 	/* Power scaling first -- has to be at scale 1 to allow 96 MHz HCLK. */
 	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
@@ -45,34 +52,35 @@ void Board_ClockInit_F411(void)
 	 * to user code, so without it the core stalls ~3 cycles per uncached
 	 * fetch and runs at a fraction of its real throughput. Enable BEFORE the
 	 * SYSCLK switch to PLL so the faster clock lands with caches already hot.
-	 * Shared by app + bootloader (both call Board_ClockInit_F411). */
+	 * ES0182 2.2.1: prefetch is unsupported on revision A silicon only. */
 	LL_FLASH_EnableInstCache();
 	LL_FLASH_EnableDataCache();
 	LL_FLASH_EnablePrefetch();
 
-	/* HSE on the BlackPill V3.x is a 25 MHz crystal (no bypass). */
+	/* HSE on the FK407M2-ZGT6 is an 8 MHz crystal (no bypass). */
 	LL_RCC_HSE_Enable();
 	while (LL_RCC_HSE_IsReady() != 1) { }
 
-	/* PLL: HSE 25 -> M=25 -> 1 MHz -> N=192 -> 192 MHz VCO -> P=2 -> 96 MHz SYSCLK. */
+	/* PLL: HSE 8 -> M=4 -> 2 MHz -> N=192 -> 384 MHz VCO -> P=4 -> 96 MHz SYSCLK. */
 	LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE,
-	                            LL_RCC_PLLM_DIV_25,
+	                            LL_RCC_PLLM_DIV_4,
 	                            192,
-	                            LL_RCC_PLLP_DIV_2);
-	/* PLL_Q = 4 -> 48 MHz for USB OTG FS. */
+	                            LL_RCC_PLLP_DIV_4);
+	/* PLL_Q = 8 -> 48 MHz for USB OTG FS. M and N are shared with the SYS
+	 * domain and must match the call above. */
 	LL_RCC_PLL_ConfigDomain_48M(LL_RCC_PLLSOURCE_HSE,
-	                            LL_RCC_PLLM_DIV_25,
+	                            LL_RCC_PLLM_DIV_4,
 	                            192,
-	                            LL_RCC_PLLQ_DIV_4);
+	                            LL_RCC_PLLQ_DIV_8);
 
 	LL_RCC_PLL_Enable();
 	while (LL_RCC_PLL_IsReady() != 1) { }
 
 	/* Bus prescalers BEFORE switching SYSCLK so the buses don't briefly
-	 * overshoot their 50/100 MHz limits at the transition. */
+	 * overshoot their 42/84 MHz limits at the transition. */
 	LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
-	LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_2);
-	LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
+	LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_4);
+	LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_2);
 
 	LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_PLL);
 	while (LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL) { }
@@ -81,14 +89,14 @@ void Board_ClockInit_F411(void)
 }
 
 /* Board-agnostic early init seam (board_clock.h). The application calls this
- * as the first line of main() so the F411 app is self-sufficient regardless
+ * as the first line of main() so the F407 app is self-sufficient regardless
  * of how it was launched -- it no longer relies on the bootloader having
  * configured the clock/latency/grouping (those are core state that survives
  * the jump but are NOT set on a cold SWD boot, and SystemCoreClock is the
  * app's own variable that the bootloader's copy never propagates into). */
 void Board_ClockInit(void)
 {
-	Board_ClockInit_F411();
+	Board_ClockInit_F407();
 
 	/* NVIC priority grouping: the HAL pattern sets this in HAL_Init() (which
 	 * the app does not call) to group 4 = all 4 implemented bits used for

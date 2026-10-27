@@ -1,15 +1,16 @@
 /**
   ******************************************************************************
   * @file           : board_tick.c
-  * @brief          : F411 BlackPill main-tick implementation on TIM2 (LL).
+  * @brief          : F407 ZGT6 main-tick implementation on TIM2 (LL).
   *
-  * F411 clock plan (board_init.c::Board_ClockInit_F411):
-  *   SYSCLK    96 MHz   (PLL: HSE 25 / M=25 -> 1 -> N=192 -> 192 / P=2)
+  * F407 clock plan (board_init.c::Board_ClockInit_F407):
+  *   SYSCLK    96 MHz   (PLL: HSE 8 / M=4 -> 2 -> N=192 -> 384 / P=4)
   *   AHB       96 MHz
-  *   APB1      48 MHz   (TIM2/3/4/5/12/13/14 timers fed by APB1*2 = 96 MHz)
-  *   APB2      96 MHz
+  *   APB1      24 MHz   (TIM2/3/4/5/12/13/14 timers fed by APB1*2 = 48 MHz)
+  *   APB2      48 MHz
   *
-  * TIM2 lives on APB1 -> 96 MHz timer clock. Same Board_TickInit /
+  * TIM2 lives on APB1 -> 48 MHz timer clock (96 MHz on the F411, whose APB1
+  * prescaler is /2 rather than /4). Same Board_TickInit /
   * Board_TickStop / Board_TickISR contract as F103, just LL flavoured
   * because the F411 driver layer is LL (locked decision in
   * F411_PORT_PLAN.md, 2026-04-27). The 200 kHz intermediate counter is
@@ -35,20 +36,20 @@ void Board_TickInit(uint32_t freq_hz)
 	LL_TIM_InitTypeDef tim_init;
 	LL_TIM_StructInit(&tim_init);
 
-	/* TIM2 input clock = 96 MHz (APB1 timer-clock with /2 prescaler).
+	/* TIM2 input clock = 48 MHz (24 MHz PCLK1 x2, APB1 prescaler /4).
 	 * Match F103 convention: prescale to 200 kHz counter, then ARR
 	 * divides that down to the requested freq_hz. The 200 kHz
 	 * intermediate keeps the same usable freq_hz range as F103
 	 * (1 Hz to 100 kHz) and avoids per-board calculations leaking up
 	 * into the application layer. */
-	/* Divide the 96 MHz timer clock by 480 to reach the 200 kHz counter the
-	 * ARR formula below assumes. NB: divide by 200000, NOT 100000 -- 96 MHz
+	/* Divide the 48 MHz timer clock by 240 to reach the 200 kHz counter the
+	 * ARR formula below assumes. NB: divide by 200000, NOT 100000 -- 48 MHz
 	 * is the ALREADY-DOUBLED APB1 timer clock. F103's StdPeriph uses the
 	 * un-doubled PCLK1 (36 MHz) / 100000 and relies on the APB1 timer x2 to
 	 * reach 200 kHz; copying that /100000 here gave only 100 kHz, so TIM2 ran
 	 * at freq_hz/2 (1 kHz, not 2 kHz) and every GetMillis()-based timing on
 	 * F411 (debounce, exchange period, gesture windows) ran at 2x duration. */
-	tim_init.Prescaler   = (96000000U / 200000U) - 1U;   /* 96 MHz / 480 = 200 kHz */
+	tim_init.Prescaler   = (48000000U / 200000U) - 1U;   /* 48 MHz / 240 = 200 kHz */
 	tim_init.Autoreload  = (200000U / freq_hz) - 1U;
 	tim_init.CounterMode = LL_TIM_COUNTERMODE_UP;
 	tim_init.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;

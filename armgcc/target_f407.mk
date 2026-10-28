@@ -1,19 +1,23 @@
 # target_f407.mk -- STM32F407ZGT6 (FK407M2-ZGT6 V1.1) target definitions
 #
-# COMPILE SPIKE. Builds the FreeJoyX application for the F407 with
-# `make TARGET=f407 app`. The board layer in board/f407_zgt6 is a copy of
-# board/f411_blackpill with only BOARD_ID and HSE_VALUE changed, so the
-# image links but is NOT yet bootable on F407 hardware:
-#   - board_init.c still carries the F411 25 MHz-HSE PLL recipe (the
-#     FK407M2 has an 8 MHz crystal and a 42 MHz APB1 limit);
-#   - board_tick.c / board_pwm.c / board_i2c.c / board_uart.c timing
-#     constants still assume the F411 96 MHz bus clocks.
-# The F407 bootloader is not ported: there are no TARGET_BOOT_* entries,
-# so only the `app` goal is supported for this target.
+# BRING-UP TARGET. The board layer in board/f407_zgt6 started as a copy of
+# board/f411_blackpill. Ported so far: BOARD_ID, HSE_VALUE (8 MHz), the clock
+# tree in board_init.c (96 MHz SYSCLK, 48 MHz USB, APB1 /4, APB2 /2, with
+# bounded HSE/PLL waits and PC13 fault blink codes) and the TIM2 tick
+# prescaler in board_tick.c. Still assuming the F411 bus clocks (wrong
+# timing on F407, not on the boot/USB path): board_pwm.c, board_i2c.c,
+# board_uart.c, board_spi.c. The F411 ADC block is compiled out.
 #
-# The app image keeps the F411 flash layout (config in sector 4 at
-# 0x08010000, application from sector 5 at 0x08020000), which RM0090
-# gives identically for the F407, so linker_app_f411.ld is reused.
+# The bootloader is the shared F4 USB-HID bootloader (bootloader/f411/Src),
+# built against the F407 board files, so `make TARGET=f407` builds both
+# images. It sits in sector 0 at 0x08000000, reads the app's vector table
+# at 0x08020000 at run time, and jumps to it: re-flashing only the app
+# needs no further changes at 0x08000000.
+#
+# Flash layout is the F411 one (bootloader in sector 0, config in sector 4
+# at 0x08010000, application from sector 5 at 0x08020000), which RM0090
+# Table 5 gives identically for the F407, so linker_boot_f411.ld and
+# linker_app_f411.ld are reused.
 
 #######################################
 # CPU / FPU
@@ -134,10 +138,45 @@ TARGET_APP_C_SOURCES = \
 # uses only stm32f4xx_hal_flash{,_ex}.c.
 
 #######################################
+# All C sources for the BOOTLOADER build: the LL + USBD DFU bootloader
+# (bootloader/f411/Src, shared by the F4 targets) plus the F407 board's
+# USB descriptor/config + clock init and the LL/HAL/USBD drivers it needs.
+#######################################
+TARGET_BOOT_C_SOURCES = \
+../bootloader/f411/Src/main.c \
+../bootloader/f411/Src/boot_usb_if.c \
+../bootloader/f411/Src/stm32f4xx_it.c \
+../board/f407_zgt6/Src/usbd_conf.c \
+../board/f407_zgt6/Src/usbd_freejoy_desc.c \
+../board/f407_zgt6/Src/board_init.c \
+../utils/crc16.c \
+../utils/syscalls.c \
+../Drivers/CMSIS/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_gpio.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_pwr.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_rcc.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.c \
+../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_utils.c \
+../Drivers/STM32_USB_Device_Library/Core/Src/usbd_core.c \
+../Drivers/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c \
+../Drivers/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c \
+../Drivers/STM32_USB_Device_Library/Class/CustomHID/Src/usbd_customhid.c
+
+#######################################
 # Linker scripts
 #######################################
 # F407 sector map matches the F411 for this layout; see header.
 TARGET_LDSCRIPT_APP  = linker_app_f411.ld
+TARGET_LDSCRIPT_BOOT = linker_boot_f411.ld
 
 #######################################
 # Startup assembly

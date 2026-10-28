@@ -14,4 +14,8 @@
 
 void Board_ClockInit_F411(void);
 
+/* Clock-init entry point the shared F4 bootloader (bootloader/f411/Src/main.c)
+ * calls before its boot decision. */
+#define BOARD_BOOT_CLOCK_INIT()		Board_ClockInit_F411()
+
 #endif /* BOARD_INIT_H_ */

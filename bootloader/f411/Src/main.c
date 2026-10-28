@@ -38,9 +38,11 @@
 #include "usbd_core.h"
 #include "usbd_customhid.h"
 
-/* Provided by board/f411_blackpill/Src/board_init.c (reused into the
- * bootloader build to share the locked 96 MHz HSE-PLL clock recipe). */
-extern void Board_ClockInit_F411(void);
+/* BOARD_BOOT_CLOCK_INIT() names the board's clock-init entry point
+ * (Board_ClockInit_F411 / Board_ClockInit_F407), provided by the board's
+ * board_init.c, which is reused into the bootloader build to share the
+ * locked 96 MHz HSE-PLL clock recipe. */
+#include "board_init.h"
 
 /* Application start address. Must match Board_RelocateVectorTable in
  * board/f411_blackpill/Src/board_dfu.c and the app linker script's
@@ -80,7 +82,7 @@ static void Boot_EnterSystemBootloader(void) __attribute__((noreturn));
 int main(void)
 {
 	HAL_Init();
-	Board_ClockInit_F411();
+	BOARD_BOOT_CLOCK_INIT();
 
 	uint16_t magic    = Boot_GetMagicWord();
 
